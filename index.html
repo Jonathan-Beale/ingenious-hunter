@@ -201,7 +201,7 @@ async function ihDownload() {
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob); a.download = name;
       document.body.appendChild(a); a.click(); a.remove();
-      s.textContent = 'Download started. Run it — first time, choose “More info → Run anyway”.'; s.className = 'dlmsg ok';
+      s.textContent = 'Download started. Unzip it, then run IngeniousHunter.exe (first time: “More info → Run anyway”).'; s.className = 'dlmsg ok';
     } else if (r.status === 401) { s.textContent = 'Wrong password.'; s.className = 'dlmsg err'; }
     else if (r.status === 404) { s.textContent = 'Beta build is being updated — try again shortly.'; s.className = 'dlmsg err'; }
     else { s.textContent = 'Download unavailable right now.'; s.className = 'dlmsg err'; }
