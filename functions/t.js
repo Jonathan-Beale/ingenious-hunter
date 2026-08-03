@@ -31,6 +31,7 @@ export async function onRequestPost(context) {
       ts: Number(ev.ts) || now,
       version: String(ev.version || '').slice(0, 32),
       session: String(ev.session || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64),
+      source: String(ev.source || '').replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 48) || 'organic',
       props: (ev.props && typeof ev.props === 'object') ? ev.props : undefined,
       cc,                 // coarse country only — no IP, no PII
       server_ts: now,
