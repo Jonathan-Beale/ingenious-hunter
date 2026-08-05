@@ -171,6 +171,16 @@
         <div id="dlmsg" class="dlmsg" role="status" aria-live="polite"></div>
       </div>
       <p class="note">Windows · unzip, then run IngeniousHunter.exe — first launch: More info → Run anyway</p>
+      <div class="divider">no password yet?</div>
+      <div class="dlbox">
+        <div class="dlrow">
+          <input id="wlemail" type="email" placeholder="you@email.com" autocomplete="email" spellcheck="false" onkeydown="if(event.key==='Enter')ihWaitlist()" />
+          <button class="btn ghost" type="button" onclick="ihWaitlist()">Join the waitlist</button>
+        </div>
+        <input id="wlhp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" />
+        <div id="wlmsg" class="dlmsg" role="status" aria-live="polite"></div>
+      </div>
+      <p class="note">We'll email you a beta invite as we widen access — no spam.</p>
     </div>
   </section>
 </main>
@@ -203,9 +213,25 @@ async function ihDownload() {
       a.href = URL.createObjectURL(blob); a.download = name;
       document.body.appendChild(a); a.click(); a.remove();
       s.textContent = 'Download started. Unzip it, then run IngeniousHunter.exe (first launch: More info → Run anyway).'; s.className = 'dlmsg ok';
-    } else if (r.status === 401) { s.textContent = 'Wrong password.'; s.className = 'dlmsg err'; }
+    } else if (r.status === 401) { s.textContent = 'Wrong password — no invite yet? Join the waitlist below.'; s.className = 'dlmsg err'; }
     else if (r.status === 404) { s.textContent = 'Beta build is being updated — try again shortly.'; s.className = 'dlmsg err'; }
     else { s.textContent = 'Download unavailable right now.'; s.className = 'dlmsg err'; }
+  } catch (e) { s.textContent = 'Something went wrong — please try again.'; s.className = 'dlmsg err'; }
+}
+async function ihWaitlist() {
+  var el = document.getElementById('wlemail');
+  var email = el.value.trim();
+  var s = document.getElementById('wlmsg');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { s.textContent = 'Enter a valid email.'; s.className = 'dlmsg err'; return; }
+  s.textContent = 'Adding you…'; s.className = 'dlmsg';
+  try {
+    var r = await fetch('/waitlist', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: email, hp: document.getElementById('wlhp').value, source: 'gate' })
+    });
+    if (r.status === 200) { s.textContent = "You're on the list — we'll email your invite as we widen access."; s.className = 'dlmsg ok'; el.value = ''; }
+    else if (r.status === 400) { s.textContent = 'Enter a valid email.'; s.className = 'dlmsg err'; }
+    else { s.textContent = 'Could not add you right now — please try again shortly.'; s.className = 'dlmsg err'; }
   } catch (e) { s.textContent = 'Something went wrong — please try again.'; s.className = 'dlmsg err'; }
 }
 </script>

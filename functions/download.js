@@ -11,6 +11,12 @@ export async function onRequestGet(context) {
   // length-independent comparison to avoid trivial timing leaks
   let ok = expected.length > 0 && pw.length === expected.length;
   for (let i = 0; i < expected.length; i++) ok = ok && (pw.charCodeAt(i) === expected.charCodeAt(i));
+
+  // Anonymous gate telemetry (fire-and-forget; never blocks or breaks the download).
+  // Measures locked-out demand: how many hit the gate and are DENIED vs GRANTED.
+  // No IP, no password stored — coarse country only, same privacy stance as t.js.
+  context.waitUntil(logGate(env, ok ? 'granted' : 'denied', request));
+
   if (!ok) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
@@ -31,4 +37,18 @@ export async function onRequestGet(context) {
   headers.set('cache-control', 'no-store');
   headers.set('x-content-type-options', 'nosniff');
   return new Response(obj.body, { headers });
+}
+
+// Write one anonymous gate event to R2 (gate/<UTC-day>/<ts>-<rand>.json). Best-effort:
+// any error is swallowed so a logging failure can never affect the download itself.
+async function logGate(env, outcome, request) {
+  try {
+    if (!env.BETA_BUCKET) return;
+    const now = Date.now();
+    const day = new Date(now).toISOString().slice(0, 10); // UTC YYYY-MM-DD
+    const cc = (request.cf && request.cf.country) || null; // coarse country, no IP
+    const rec = { event: 'gate', outcome, ts: now, cc };
+    const objKey = `gate/${day}/${now}-${Math.random().toString(36).slice(2, 8)}.json`;
+    await env.BETA_BUCKET.put(objKey, JSON.stringify(rec), { httpMetadata: { contentType: 'application/json' } });
+  } catch (_) { /* never break the download path on a telemetry error */ }
 }
