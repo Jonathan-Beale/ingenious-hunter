@@ -37,6 +37,10 @@
   .nav .navr { display: flex; align-items: center; gap: 20px; }
   .nav a.navlink { color: #e6e8ec; font-weight: 700; text-decoration: none; letter-spacing: .2px; white-space: nowrap; }
   .nav a.navlink:hover { color: var(--red); }
+  .cta-box .freebuilds { margin: 4px 0 20px; font-size: 15px; color: var(--muted); }
+  .cta-box .freebuilds a { color: var(--red); font-weight: 800; text-decoration: none; }
+  .cta-box .freebuilds a:hover { text-decoration: underline; }
+  .dlmsg a { color: var(--red); font-weight: 700; }
 
   .hero { position: relative; text-align: center; padding: 70px 0 60px; overflow: hidden; }
   .hero::before { content: ""; position: absolute; inset: -20% 0 auto 0; height: 640px; z-index: 0;
@@ -165,6 +169,7 @@
       <h2>Get in the closed beta</h2>
       <p>Join our Discord for the community and updates — or download directly with your beta password.</p>
       <p class="note">Build analytics, the recording mixer, and automation are <strong>free</strong>. Clip export and cloud sync are on the way.</p>
+      <p class="freebuilds"><a href="/builds/">Browse every champion’s build free →</a> · no login, refreshed every patch</p>
       <div class="btns">
         <a class="btn primary" href="https://discord.gg/usMgjVnRut" rel="noopener" target="_blank">Join the Discord</a>
       </div>
@@ -220,7 +225,11 @@ async function ihDownload() {
       a.href = URL.createObjectURL(blob); a.download = name;
       document.body.appendChild(a); a.click(); a.remove();
       s.textContent = 'Download started. Unzip it, then run IngeniousHunter.exe (first launch: More info → Run anyway).'; s.className = 'dlmsg ok';
-    } else if (r.status === 401) { s.textContent = 'Wrong password — no invite yet? Join the waitlist below.'; s.className = 'dlmsg err'; }
+    } else if (r.status === 401) {
+      s.innerHTML = 'The app is invite-only right now — but the <strong>build analytics are free, no login</strong>: <a href="/builds/">Browse every champion’s build →</a><br>Want the app? Drop your email below and we’ll send an invite.';
+      s.className = 'dlmsg err';
+      var _wl = document.getElementById('wlemail'); if (_wl) { _wl.focus({ preventScroll: true }); _wl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    }
     else if (r.status === 404) { s.textContent = 'Beta build is being updated — try again shortly.'; s.className = 'dlmsg err'; }
     else { s.textContent = 'Download unavailable right now.'; s.className = 'dlmsg err'; }
   } catch (e) { s.textContent = 'Something went wrong — please try again.'; s.className = 'dlmsg err'; }
