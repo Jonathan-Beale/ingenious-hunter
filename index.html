@@ -34,6 +34,9 @@
   .nav a.cta { background: var(--red); color: #fff; font-weight: 700; padding: 9px 17px; border-radius: 10px;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--red) 50%, transparent), 0 6px 20px -8px var(--red); }
   .nav a.cta:hover { filter: brightness(1.08); }
+  .nav .navr { display: flex; align-items: center; gap: 20px; }
+  .nav a.navlink { color: #e6e8ec; font-weight: 700; text-decoration: none; letter-spacing: .2px; white-space: nowrap; }
+  .nav a.navlink:hover { color: var(--red); }
 
   .hero { position: relative; text-align: center; padding: 70px 0 60px; overflow: hidden; }
   .hero::before { content: ""; position: absolute; inset: -20% 0 auto 0; height: 640px; z-index: 0;
@@ -106,7 +109,10 @@
 <header>
   <div class="wrap nav">
     <div class="brand"><img src="assets/logo.png" alt="Ingenious Hunter" /> Ingenious Hunter</div>
-    <a class="cta" href="#beta">Join the Beta</a>
+    <div class="navr">
+      <a class="navlink" href="/champions/">Champions</a>
+      <a class="cta" href="#beta">Join the Beta</a>
+    </div>
   </div>
 </header>
 
