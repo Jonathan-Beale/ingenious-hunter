@@ -1,9 +1,9 @@
-// Cloudflare Pages Function — PUBLIC champion-analytics site under /champions/*.
+// Cloudflare Pages Function — PUBLIC champion-analytics site under /builds/*.
 // Serves the split analytics site from the PRIVATE R2 bucket (bound as BETA_BUCKET) at
-// champions/<path>, WITHOUT a password (this is public marketing/SEO content, unlike the
+// builds/<path>, WITHOUT a password (this is public marketing/SEO content, unlike the
 // gated /data and /app endpoints). Preserves nested paths (icons, per-champ data). A
-// directory/navigation request (/champions/ or an extensionless path) serves
-// champions/index.html so the hash-routed SPA (#<champ>/<role>/<tab>) works on deep links.
+// directory/navigation request (/builds/ or an extensionless path) serves
+// builds/index.html so the hash-routed SPA (#<champ>/<role>/<tab>) works on deep links.
 // Mirrors data/[name].js / app/[name].js, minus the BETA_PASSWORD gate, plus [[path]] nesting.
 const CT = {
   html: 'text/html; charset=utf-8', json: 'application/json', png: 'image/png',
@@ -23,10 +23,10 @@ export async function onRequestGet(context) {
   let rel = segs.join('/').replace(/\.\.+/g, '').replace(/^\/+/, '');
   // navigation / directory (empty or no file extension) -> the SPA entry
   const isNav = rel === '' || !rel.split('/').pop().includes('.');
-  const key = isNav ? 'champions/index.html' : 'champions/' + rel;
+  const key = isNav ? 'builds/index.html' : 'builds/' + rel;
 
   let obj = await env.BETA_BUCKET.get(key);
-  if (!obj && !isNav) obj = await env.BETA_BUCKET.get('champions/index.html'); // deep-link fallback -> SPA
+  if (!obj && !isNav) obj = await env.BETA_BUCKET.get('builds/index.html'); // deep-link fallback -> SPA
   if (!obj) {
     return new Response(JSON.stringify({ error: 'not_found' }), {
       status: 404, headers: { 'content-type': 'application/json' },
