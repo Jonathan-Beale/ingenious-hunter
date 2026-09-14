@@ -20,6 +20,10 @@ async function getSlugs(env) {
 }
 const ROLE_SET = new Set(['top', 'jungle', 'mid', 'bot', 'support', 'all']);
 const RDISP = { top: 'Top', jungle: 'Jungle', mid: 'Mid', bot: 'Bot', support: 'Support' };
+// The site is served under /builds/, but a role path (/builds/<slug>/<role>) is two levels deep, so
+// the browser would resolve relative URLs (icons, data/champ/*.json) against /builds/<slug>/ and 404.
+// A single <base href="/builds/"> pins every relative URL to the site root at any path depth.
+const withBase = (h) => h.includes('<base ') ? h : h.replace('<meta charset="utf-8">', '<meta charset="utf-8"><base href="/builds/">');
 function injectMeta(html, name, slug, role) {
   const n = ESC(name);
   const rl = role && RDISP[role] ? ' ' + RDISP[role] : '';        // '' for 'all' or none
@@ -27,12 +31,12 @@ function injectMeta(html, name, slug, role) {
   const desc = 'Causal Win-Probability ' + (rl ? RDISP[role] + ' ' : '') + 'build for ' + n
     + ': the items, runes and summoners that measurably raise win rate in Gold+ ranked games — not scraped pick-rates.';
   const canon = 'https://ingenioushunter.gg/builds/' + slug + (role && role !== 'all' ? '/' + role : '');
-  return html
+  return withBase(html
     .replace(/<title>[^<]*<\/title>/, '<title>' + title + '</title>')
     .replace(/(<meta name="description" content=")[^"]*(">)/, '$1' + desc + '$2')
     .replace(/(<meta property="og:title" content=")[^"]*(">)/, '$1' + n + rl + ' Build &amp; Runes · Ingenious Hunter$2')
     .replace(/(<meta property="og:description" content=")[^"]*(">)/, '$1' + desc + '$2')
-    .replace(/(<link rel="canonical" href=")[^"]*(">)/, '$1' + canon + '$2');
+    .replace(/(<link rel="canonical" href=")[^"]*(">)/, '$1' + canon + '$2'));
 }
 // Hub: inject a crawlable "All champions" index (real /builds/<slug> links) before </body>, so the
 // hub page links to all 173 champion pages for internal-linking / crawl (SPA content stays above it).
@@ -41,7 +45,7 @@ function injectHubIndex(html, map) {
     .map(([slug, name]) => '<a href="/builds/' + slug + '">' + ESC(name) + '</a>').join('');
   const nav = '<nav class="champ-index" aria-label="All champions"><h2>All champion builds</h2>' + links + '</nav>'
     + '<style>.champ-index{max-width:1120px;margin:26px auto 44px;padding:0 20px}.champ-index h2{font-family:var(--fh,inherit);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a8f98;margin:0 0 12px}.champ-index a{display:inline-block;margin:0 12px 7px 0;color:#cfd3dc;text-decoration:none;font-size:13px;font-weight:600}.champ-index a:hover{color:#ff3b3b}</style>';
-  return html.replace('</body>', nav + '</body>');
+  return withBase(html.replace('</body>', nav + '</body>'));
 }
 export async function onRequestGet(context) {
   const { env, params } = context;
