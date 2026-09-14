@@ -18,15 +18,19 @@ async function getSlugs(env) {
   catch (_) { SLUGS = {}; }
   return SLUGS;
 }
-function injectMeta(html, name, slug) {
+const ROLE_SET = new Set(['top', 'jungle', 'mid', 'bot', 'support', 'all']);
+const RDISP = { top: 'Top', jungle: 'Jungle', mid: 'Mid', bot: 'Bot', support: 'Support' };
+function injectMeta(html, name, slug, role) {
   const n = ESC(name);
-  const title = n + ' Build, Items &amp; Runes — LoL · Ingenious Hunter';
-  const desc = 'Causal Win-Probability build for ' + n + ': the items, runes and summoners that measurably raise win rate in Gold+ ranked games — not scraped pick-rates.';
-  const canon = 'https://ingenioushunter.gg/builds/' + slug;
+  const rl = role && RDISP[role] ? ' ' + RDISP[role] : '';        // '' for 'all' or none
+  const title = n + rl + ' Build, Items &amp; Runes — LoL · Ingenious Hunter';
+  const desc = 'Causal Win-Probability ' + (rl ? RDISP[role] + ' ' : '') + 'build for ' + n
+    + ': the items, runes and summoners that measurably raise win rate in Gold+ ranked games — not scraped pick-rates.';
+  const canon = 'https://ingenioushunter.gg/builds/' + slug + (role && role !== 'all' ? '/' + role : '');
   return html
     .replace(/<title>[^<]*<\/title>/, '<title>' + title + '</title>')
     .replace(/(<meta name="description" content=")[^"]*(">)/, '$1' + desc + '$2')
-    .replace(/(<meta property="og:title" content=")[^"]*(">)/, '$1' + n + ' Build &amp; Runes · Ingenious Hunter$2')
+    .replace(/(<meta property="og:title" content=")[^"]*(">)/, '$1' + n + rl + ' Build &amp; Runes · Ingenious Hunter$2')
     .replace(/(<meta property="og:description" content=")[^"]*(">)/, '$1' + desc + '$2')
     .replace(/(<link rel="canonical" href=")[^"]*(">)/, '$1' + canon + '$2');
 }
@@ -45,13 +49,17 @@ export async function onRequestGet(context) {
   const segs = Array.isArray(params.path) ? params.path : (params.path ? [params.path] : []);
   const rel = segs.join('/').replace(/\.\.+/g, '').replace(/^\/+/, '');
   const isNav = rel === '' || !rel.split('/').pop().includes('.');
-  // champion page: a single extensionless segment that maps to a known slug -> per-champion meta
-  if (isNav && rel && !rel.includes('/')) {
-    const name = (await getSlugs(env))[rel.toLowerCase()];
-    if (name) {
-      const idx = await env.BETA_BUCKET.get('builds/index.html');
-      if (idx) return new Response(injectMeta(await idx.text(), name, rel.toLowerCase()),
-        { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' } });
+  // champion page: /builds/<slug> or /builds/<slug>/<role> -> per-page (role-aware) meta
+  if (isNav && rel) {
+    const parts = rel.toLowerCase().split('/');
+    if (parts.length <= 2) {
+      const name = (await getSlugs(env))[parts[0]];
+      if (name) {
+        const role = ROLE_SET.has(parts[1]) ? parts[1] : null;   // ignore an unknown 2nd segment
+        const idx = await env.BETA_BUCKET.get('builds/index.html');
+        if (idx) return new Response(injectMeta(await idx.text(), name, parts[0], role),
+          { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' } });
+      }
     }
   }
   // hub (/builds/): inject the crawlable champion index
