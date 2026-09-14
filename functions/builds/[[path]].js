@@ -1,41 +1,58 @@
 // Cloudflare Pages Function — PUBLIC champion-analytics site under /builds/*.
-// Serves the split analytics site from the PRIVATE R2 bucket (bound as BETA_BUCKET) at
-// builds/<path>, WITHOUT a password (this is public marketing/SEO content, unlike the
-// gated /data and /app endpoints). Preserves nested paths (icons, per-champ data). A
-// directory/navigation request (/builds/ or an extensionless path) serves
-// builds/index.html so the hash-routed SPA (#<champ>/<role>/<tab>) works on deep links.
-// Mirrors data/[name].js / app/[name].js, minus the BETA_PASSWORD gate, plus [[path]] nesting.
+// Serves the split analytics site from the PRIVATE R2 bucket (BETA_BUCKET) at builds/<path>,
+// ungated (public SEO content). Preserves nested paths. Navigations serve builds/index.html so the
+// SPA works. For a CHAMPION path (/builds/<slug>) it injects per-champion <title>/description/
+// canonical SERVER-SIDE (so each of the 173 pages is distinct + indexable, not one duplicate title
+// until JS runs). Mirrors data/[name].js / app/[name].js minus the password gate.
 const CT = {
   html: 'text/html; charset=utf-8', json: 'application/json', png: 'image/png',
   jpg: 'image/jpeg', jpeg: 'image/jpeg', svg: 'image/svg+xml', webp: 'image/webp',
   css: 'text/css; charset=utf-8', js: 'application/javascript; charset=utf-8',
   ico: 'image/x-icon', woff2: 'font/woff2', woff: 'font/woff', txt: 'text/plain; charset=utf-8',
 };
+const ESC = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+let SLUGS = null; // per-isolate cache of slug -> champion display name
+async function getSlugs(env) {
+  if (SLUGS) return SLUGS;
+  try { const o = await env.BETA_BUCKET.get('builds/slugs.json'); SLUGS = o ? JSON.parse(await o.text()) : {}; }
+  catch (_) { SLUGS = {}; }
+  return SLUGS;
+}
+function injectMeta(html, name, slug) {
+  const n = ESC(name);
+  const title = n + ' Build, Items &amp; Runes — LoL · Ingenious Hunter';
+  const desc = 'Causal Win-Probability build for ' + n + ': the items, runes and summoners that measurably raise win rate in Gold+ ranked games — not scraped pick-rates.';
+  const canon = 'https://ingenioushunter.gg/builds/' + slug;
+  return html
+    .replace(/<title>[^<]*<\/title>/, '<title>' + title + '</title>')
+    .replace(/(<meta name="description" content=")[^"]*(">)/, '$1' + desc + '$2')
+    .replace(/(<meta property="og:title" content=")[^"]*(">)/, '$1' + n + ' Build &amp; Runes · Ingenious Hunter$2')
+    .replace(/(<meta property="og:description" content=")[^"]*(">)/, '$1' + desc + '$2')
+    .replace(/(<link rel="canonical" href=")[^"]*(">)/, '$1' + canon + '$2');
+}
 export async function onRequestGet(context) {
   const { env, params } = context;
-  if (!env.BETA_BUCKET) {
-    return new Response(JSON.stringify({ error: 'not_configured' }), {
-      status: 500, headers: { 'content-type': 'application/json' },
-    });
-  }
-  // [[path]] yields an array of segments; join and guard against traversal.
+  if (!env.BETA_BUCKET) return new Response(JSON.stringify({ error: 'not_configured' }), { status: 500, headers: { 'content-type': 'application/json' } });
   const segs = Array.isArray(params.path) ? params.path : (params.path ? [params.path] : []);
-  let rel = segs.join('/').replace(/\.\.+/g, '').replace(/^\/+/, '');
-  // navigation / directory (empty or no file extension) -> the SPA entry
+  const rel = segs.join('/').replace(/\.\.+/g, '').replace(/^\/+/, '');
   const isNav = rel === '' || !rel.split('/').pop().includes('.');
+  // champion page: a single extensionless segment that maps to a known slug -> per-champion meta
+  if (isNav && rel && !rel.includes('/')) {
+    const name = (await getSlugs(env))[rel.toLowerCase()];
+    if (name) {
+      const idx = await env.BETA_BUCKET.get('builds/index.html');
+      if (idx) return new Response(injectMeta(await idx.text(), name, rel.toLowerCase()),
+        { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' } });
+    }
+  }
   const key = isNav ? 'builds/index.html' : 'builds/' + rel;
-
   let obj = await env.BETA_BUCKET.get(key);
   if (!obj && !isNav) obj = await env.BETA_BUCKET.get('builds/index.html'); // deep-link fallback -> SPA
-  if (!obj) {
-    return new Response(JSON.stringify({ error: 'not_found' }), {
-      status: 404, headers: { 'content-type': 'application/json' },
-    });
-  }
+  if (!obj) return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: { 'content-type': 'application/json' } });
   const servedKey = obj.key || key;
   const ext = servedKey.split('.').pop().toLowerCase();
   const headers = new Headers();
-  obj.writeHttpMetadata(headers); // carries the content-type we set at upload
+  obj.writeHttpMetadata(headers);
   headers.set('content-type', CT[ext] || obj.httpMetadata?.contentType || 'application/octet-stream');
   headers.set('cache-control', ext === 'html' || ext === 'json' ? 'no-cache' : 'public, max-age=86400');
   headers.set('x-content-type-options', 'nosniff');
