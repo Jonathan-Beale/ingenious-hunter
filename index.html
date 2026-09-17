@@ -107,19 +107,11 @@
   .foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .foot .brand img { width: 26px; height: 26px; mix-blend-mode: lighten; }
   .disclaimer { max-width: 640px; margin: 18px auto 0; text-align: center; color: #6b6b6b; font-size: 12px; }
+  /*IHHDR-CSS-START*/.ihhdr-bar{position:sticky;top:0;z-index:60;background:rgba(8,8,10,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid #242424;}.ihhdr{display:flex;align-items:center;justify-content:space-between;height:66px;max-width:1160px;margin:0 auto;padding:0 20px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}.ihhdr-brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.3px;color:#fff;text-decoration:none;font-size:16px;}.ihhdr-brand img{width:30px;height:30px;mix-blend-mode:lighten;}.ihhdr-nav{display:flex;align-items:center;gap:20px;}.ihhdr-link{color:#e6e8ec;font-weight:700;text-decoration:none;letter-spacing:.2px;white-space:nowrap;font-size:14px;}.ihhdr-link:hover{color:#ff1e1e;}.ihhdr-cta{font-weight:700;background:#ff1e1e;color:#fff;padding:9px 17px;border-radius:10px;text-decoration:none;font-size:14px;white-space:nowrap;}.ihhdr-cta:hover{filter:brightness(1.08);}@media(max-width:520px){.ihhdr{height:58px;padding:0 14px;}.ihhdr-nav{gap:12px;}.ihhdr-link,.ihhdr-cta{font-size:13px;}.ihhdr-cta{padding:8px 12px;}}/*IHHDR-CSS-END*/
 </style>
 </head>
 <body>
-<header>
-  <div class="wrap nav">
-    <div class="brand"><img src="assets/logo.png" alt="Ingenious Hunter" /> Ingenious Hunter</div>
-    <div class="navr">
-      <a class="navlink" href="/builds/">Builds</a>
-      <a class="navlink" href="/builds/patch">Patch Report</a>
-      <a class="cta" href="#beta">Join the Beta</a>
-    </div>
-  </div>
-</header>
+<!--IHHDR-START--><header class="ihhdr-bar"><div class="ihhdr"><a class="ihhdr-brand" href="/"><img src="/assets/logo.png" alt="Ingenious Hunter"> Ingenious Hunter</a><nav class="ihhdr-nav"><a class="ihhdr-link" href="/builds/">Builds</a><a class="ihhdr-link" href="/builds/patch">Patch Report</a><a class="ihhdr-cta" href="/#beta">Join the Beta</a></nav></div></header><!--IHHDR-END-->
 
 <main>
   <section class="hero">
