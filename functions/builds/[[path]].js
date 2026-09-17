@@ -24,7 +24,7 @@ const RDISP = { top: 'Top', jungle: 'Jungle', mid: 'Mid', bot: 'Bot', support: '
 // the browser would resolve relative URLs (icons, data/champ/*.json) against /builds/<slug>/ and 404.
 // A single <base href="/builds/"> pins every relative URL to the site root at any path depth.
 const withBase = (h) => h.includes('<base ') ? h : h.replace('<meta charset="utf-8">', '<meta charset="utf-8"><base href="/builds/">');
-function injectMeta(html, name, slug, role) {
+function injectMeta(html, name, slug, role, ogImage) {
   const n = ESC(name);
   const rlRaw = role && RDISP[role] ? ' ' + RDISP[role] : '';     // '' for 'all' or none
   const rl = ESC(rlRaw);
@@ -53,13 +53,16 @@ function injectMeta(html, name, slug, role) {
     .replace(/(<meta property="og:title" content=")[^"]*(">)/, '$1' + n + rl + ' Build &amp; Runes · Ingenious Hunter$2')
     .replace(/(<meta property="og:description" content=")[^"]*(">)/, '$1' + desc + '$2')
     .replace(/(<link rel="canonical" href=")[^"]*(">)/, '$1' + canon + '$2')
+    .replace(/(<meta property="og:image" content=")[^"]*(">)/, ogImage ? '$1' + ESC(ogImage) + '$2' : '$&')
+    .replace(/(<meta name="twitter:image" content=")[^"]*(">)/, ogImage ? '$1' + ESC(ogImage) + '$2' : '$&')
     .replace('</head>', ldTag + '</head>'));
 }
 // Hub: inject a crawlable "All champions" index (real /builds/<slug> links) before </body>, so the
 // hub page links to all 173 champion pages for internal-linking / crawl (SPA content stays above it).
 function injectHubIndex(html, map) {
-  const links = Object.entries(map).sort((a, b) => a[1].localeCompare(b[1]))
-    .map(([slug, name]) => '<a href="/builds/' + slug + '">' + ESC(name) + '</a>').join('');
+  const links = Object.entries(map).map(([slug, rec]) => [slug, typeof rec === 'string' ? rec : ((rec && rec.n) || slug)])
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .map(([slug, nm]) => '<a href="/builds/' + slug + '">' + ESC(nm) + '</a>').join('');
   const nav = '<nav class="champ-index" aria-label="All champions"><h2>All champion builds</h2>' + links + '</nav>'
     + '<style>.champ-index{max-width:1120px;margin:26px auto 44px;padding:0 20px}.champ-index h2{font-family:var(--fh,inherit);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a8f98;margin:0 0 12px}.champ-index a{display:inline-block;margin:0 12px 7px 0;color:#cfd3dc;text-decoration:none;font-size:13px;font-weight:600}.champ-index a:hover{color:#ff3b3b}</style>';
   return withBase(html.replace('</body>', nav + '</body>'));
@@ -74,11 +77,14 @@ export async function onRequestGet(context) {
   if (isNav && rel) {
     const parts = rel.toLowerCase().split('/');
     if (parts.length <= 2) {
-      const name = (await getSlugs(env))[parts[0]];
+      const rec = (await getSlugs(env))[parts[0]];
+      const name = typeof rec === 'string' ? rec : (rec && rec.n);           // tolerate old (string) + new ({n,k}) slugs.json
+      const key = (rec && typeof rec === 'object') ? rec.k : null;
       if (name) {
         const role = ROLE_SET.has(parts[1]) ? parts[1] : null;   // ignore an unknown 2nd segment
+        const ogImage = key ? 'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/' + key + '_0.jpg' : null;
         const idx = await env.BETA_BUCKET.get('builds/index.html');
-        if (idx) return new Response(injectMeta(await idx.text(), name, parts[0], role),
+        if (idx) return new Response(injectMeta(await idx.text(), name, parts[0], role, ogImage),
           { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' } });
       }
     }
