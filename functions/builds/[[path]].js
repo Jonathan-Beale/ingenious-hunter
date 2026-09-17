@@ -26,17 +26,34 @@ const RDISP = { top: 'Top', jungle: 'Jungle', mid: 'Mid', bot: 'Bot', support: '
 const withBase = (h) => h.includes('<base ') ? h : h.replace('<meta charset="utf-8">', '<meta charset="utf-8"><base href="/builds/">');
 function injectMeta(html, name, slug, role) {
   const n = ESC(name);
-  const rl = role && RDISP[role] ? ' ' + RDISP[role] : '';        // '' for 'all' or none
-  const title = n + rl + ' Build, Items &amp; Runes — LoL · Ingenious Hunter';
-  const desc = 'Causal Win-Probability ' + (rl ? RDISP[role] + ' ' : '') + 'build for ' + n
+  const rlRaw = role && RDISP[role] ? ' ' + RDISP[role] : '';     // '' for 'all' or none
+  const rl = ESC(rlRaw);
+  const title = n + rl + ' Build &amp; Win Rate — Best Items, Runes · Ingenious Hunter';
+  const desc = 'Causal Win-Probability ' + (rlRaw ? ESC(RDISP[role]) + ' ' : '') + 'build for ' + n
     + ': the items, runes and summoners that measurably raise win rate in Gold+ ranked games — not scraped pick-rates.';
   const canon = 'https://ingenioushunter.gg/builds/' + slug + (role && role !== 'all' ? '/' + role : '');
+  // JSON-LD (raw text, not HTML-escaped): WebPage + breadcrumb for rich results.
+  const nameRaw = name + rlRaw;
+  const ld = {
+    '@context': 'https://schema.org', '@type': 'WebPage',
+    name: nameRaw + ' Build & Win Rate',
+    url: canon,
+    description: 'Causal Win-Probability ' + (rlRaw ? RDISP[role] + ' ' : '') + 'build for ' + name
+      + ': items, runes and summoners that measurably raise win rate in Gold+ ranked games.',
+    isPartOf: { '@type': 'WebSite', name: 'Ingenious Hunter', url: 'https://ingenioushunter.gg' },
+    breadcrumb: { '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Champion Builds', item: 'https://ingenioushunter.gg/builds/' },
+      { '@type': 'ListItem', position: 2, name: nameRaw + ' Build', item: canon },
+    ] },
+  };
+  const ldTag = '<script type="application/ld+json">' + JSON.stringify(ld).replace(/</g, '\\u003c') + '</script>';
   return withBase(html
     .replace(/<title>[^<]*<\/title>/, '<title>' + title + '</title>')
     .replace(/(<meta name="description" content=")[^"]*(">)/, '$1' + desc + '$2')
     .replace(/(<meta property="og:title" content=")[^"]*(">)/, '$1' + n + rl + ' Build &amp; Runes · Ingenious Hunter$2')
     .replace(/(<meta property="og:description" content=")[^"]*(">)/, '$1' + desc + '$2')
-    .replace(/(<link rel="canonical" href=")[^"]*(">)/, '$1' + canon + '$2'));
+    .replace(/(<link rel="canonical" href=")[^"]*(">)/, '$1' + canon + '$2')
+    .replace('</head>', ldTag + '</head>'));
 }
 // Hub: inject a crawlable "All champions" index (real /builds/<slug> links) before </body>, so the
 // hub page links to all 173 champion pages for internal-linking / crawl (SPA content stays above it).
@@ -65,6 +82,12 @@ export async function onRequestGet(context) {
           { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' } });
       }
     }
+  }
+  // static content page: /builds/<name> -> builds/<name>.html (e.g. /builds/patch, the patch report)
+  if (isNav && rel && !rel.includes('/')) {
+    const page = await env.BETA_BUCKET.get('builds/' + rel.toLowerCase() + '.html');
+    if (page) return new Response(withBase(await page.text()),
+      { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' } });
   }
   // hub (/builds/): inject the crawlable champion index
   if (isNav && rel === '') {
