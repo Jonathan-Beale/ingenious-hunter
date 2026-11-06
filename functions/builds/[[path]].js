@@ -64,7 +64,7 @@ function injectHubIndex(html, map) {
     .sort((a, b) => a[1].localeCompare(b[1]))
     .map(([slug, nm]) => '<a href="/builds/' + slug + '">' + ESC(nm) + '</a>').join('');
   const nav = '<nav class="champ-index" aria-label="All champions"><h2>All champion builds</h2>' + links + '</nav>'
-    + '<style>.champ-index{max-width:1120px;margin:26px auto 44px;padding:0 20px}.champ-index h2{font-family:var(--fh,inherit);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a8f98;margin:0 0 12px}.champ-index a{display:inline-block;margin:0 12px 7px 0;color:#cfd3dc;text-decoration:none;font-size:13px;font-weight:600}.champ-index a:hover{color:#ff3b3b}</style>';
+    + '<style>.champ-index{max-width:1120px;margin:26px auto 44px;padding:0 20px}.champ-index h2{font-family:var(--fh,inherit);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#b5bac4;margin:0 0 12px;text-shadow:0 1px 10px rgba(0,0,0,.92),0 0 3px rgba(0,0,0,.95)}.champ-index a{display:inline-block;margin:0 12px 7px 0;color:#e2e5ea;text-decoration:none;font-size:13px;font-weight:600;text-shadow:0 1px 10px rgba(0,0,0,.92),0 0 3px rgba(0,0,0,.95)}.champ-index a:hover{color:#ff3b3b}</style>';
   return withBase(html.replace('</body>', nav + '</body>'));
 }
 export async function onRequestGet(context) {
