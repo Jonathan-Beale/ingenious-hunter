@@ -13,15 +13,36 @@ export function json(obj, status = 200, headers = {}) {
 
 // Verify the Cloudflare Access assertion server-side. Returns { email, sub } or null. Even with the
 // edge Access policy in place, every admin handler calls this so a direct hit is rejected too.
+// When env.TOURNEY_AUTH_DEBUG === '1', the exact failure stage is logged (to `wrangler pages
+// deployment tail`) and stashed on context.data.accessReason for the 403 to surface. NEVER logs the
+// token or signature — only stage names and non-sensitive config (aud tags, kid, host).
 export async function requireAccess(context) {
   const { request, env } = context;
-  const token = request.headers.get('Cf-Access-Jwt-Assertion')
-    || (request.headers.get('Cookie') || '').match(/CF_Authorization=([^;]+)/)?.[1];
-  if (!token || !env.CF_ACCESS_TEAM_DOMAIN || !env.CF_ACCESS_AUD) return null;
-  const claims = await verifyAccessJwt(token, { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, aud: env.CF_ACCESS_AUD });
-  if (!claims) return null;
+  context.data = context.data || {};
+  const debug = env.TOURNEY_AUTH_DEBUG === '1';
+  const reasons = [];
+  const log = (stage, detail) => {
+    reasons.push(detail ? `${stage} ${safeJson(detail)}` : stage);
+    if (debug) { try { console.warn('[access] ' + stage + (detail ? ' ' + safeJson(detail) : '')); } catch { /* noop */ } }
+  };
+  const record = (r) => { context.data.accessReason = r; context.data.accessDebug = debug; };
+
+  const hdr = request.headers.get('Cf-Access-Jwt-Assertion');
+  const cookie = (request.headers.get('Cookie') || '').match(/CF_Authorization=([^;]+)/)?.[1];
+  const token = hdr || cookie;
+
+  if (!env.CF_ACCESS_TEAM_DOMAIN || !env.CF_ACCESS_AUD) {
+    log('not_configured', { team_domain_set: !!env.CF_ACCESS_TEAM_DOMAIN, aud_set: !!env.CF_ACCESS_AUD });
+    record(reasons.at(-1)); return null;
+  }
+  if (!token) { log('no_access_token', { header: !!hdr, cookie: !!cookie }); record(reasons.at(-1)); return null; }
+
+  const claims = await verifyAccessJwt(token, { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, aud: env.CF_ACCESS_AUD, log });
+  if (!claims) { record(reasons.at(-1) || 'verify_failed'); return null; }
   return { email: claims.email || claims.sub, sub: claims.sub };
 }
+
+function safeJson(o) { try { return JSON.stringify(o); } catch { return '{}'; } }
 
 const HEAD_CSS = `:root{--bg:#0a0a0a;--bg-2:#101010;--panel:#141414;--panel-2:#1b1b1b;--line:#242424;--line-red:#7a0909;--text:#fff;--muted:#9aa0a6;--red:#ff1e1e;--red-deep:#7a0909;--green:#32ff5e;--amber:#ffb000;--radius:14px;--maxw:1120px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}

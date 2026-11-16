@@ -4,7 +4,10 @@ import { requireAccess, json } from '../../tournaments/_lib/http.js';
 
 export async function onRequest(context) {
   const admin = await requireAccess(context);
-  if (!admin) return json({ error: 'forbidden', detail: 'admin access required' }, 403);
+  if (!admin) {
+    const dbg = context.data && context.data.accessDebug;
+    return json({ error: 'forbidden', detail: 'admin access required', ...(dbg ? { reason: context.data.accessReason } : {}) }, 403);
+  }
   context.data = context.data || {};
   context.data.admin = admin;
   return context.next();

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { signToken, verifyToken, verifyAccessJwt, sha256hex, _internal } from '../functions/tournaments/_lib/auth.js';
+import { signToken, verifyToken, verifyAccessJwt, sha256hex, normalizeAccessDomain, _internal } from '../functions/tournaments/_lib/auth.js';
 
 const SECRET = 'test-secret-value-abc123';
 
@@ -67,4 +67,29 @@ test('Access JWT rejected on expiry, aud mismatch, and tamper', async () => {
 
   const tampered = good.token.slice(0, -4) + 'AAAA';
   assert.equal(await verifyAccessJwt(tampered, { aud: 'APP_AUD', keyFetcher: async () => good.jwks }), null); // bad sig
+});
+
+test('normalizeAccessDomain strips scheme + trailing slash (the https:// bug)', () => {
+  assert.equal(normalizeAccessDomain('https://team.cloudflareaccess.com/'), 'team.cloudflareaccess.com');
+  assert.equal(normalizeAccessDomain('HTTP://team.cloudflareaccess.com'), 'team.cloudflareaccess.com');
+  assert.equal(normalizeAccessDomain('team.cloudflareaccess.com'), 'team.cloudflareaccess.com');
+});
+
+test('verifyAccessJwt reports the exact failure stage (no token leaked) and never throws', async () => {
+  const exp = Math.floor(Date.now() / 1000) + 600;
+  const { token, jwks } = await makeAccessJwt({ aud: 'RIGHT_AUD', exp, email: 'a@ih.gg' });
+  const stages = [];
+  const log = (s) => stages.push(s);
+
+  assert.equal(await verifyAccessJwt(token, { aud: 'WRONG_AUD', keyFetcher: async () => jwks, log }), null);
+  assert.ok(stages.includes('aud_mismatch'), 'aud mismatch is reported');
+
+  stages.length = 0;
+  const r2 = await verifyAccessJwt(token, { aud: 'RIGHT_AUD', keyFetcher: async () => { throw new Error('boom'); }, log });
+  assert.equal(r2, null, 'a JWKS fetch error returns null, not a throw');
+  assert.ok(stages.includes('jwks_fetch_error'));
+
+  stages.length = 0;
+  assert.ok(await verifyAccessJwt(token, { aud: 'RIGHT_AUD', keyFetcher: async () => jwks, log }), 'valid token still passes');
+  assert.ok(!stages.some((s) => s !== 'issuer_note'), 'no failure stage on success');
 });

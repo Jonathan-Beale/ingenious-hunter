@@ -69,32 +69,47 @@ export async function sha256hex(s) {
 }
 
 // ---- Cloudflare Access JWT ----
-// Verifies the RS256 Access assertion against the team's JWKS, checking aud + exp. `keyFetcher`
-// is injectable for tests; in production it fetches https://<teamDomain>/cdn-cgi/access/certs.
-export async function verifyAccessJwt(token, { teamDomain, aud, keyFetcher, now = Date.now() } = {}) {
-  if (typeof token !== 'string') return null;
+// Verifies the RS256 Access assertion against the team's JWKS, checking aud + exp. Never throws —
+// any failure returns null and (if `log` is given) reports the exact stage. `log` only ever receives
+// NON-SENSITIVE detail (stage name, aud tags, kid, exp, host) — never the token or signature.
+// `keyFetcher` is injectable for tests; otherwise it fetches <teamDomain>/cdn-cgi/access/certs.
+export async function verifyAccessJwt(token, { teamDomain, aud, keyFetcher, now = Date.now(), log } = {}) {
+  const dbg = typeof log === 'function' ? log : () => {};
+  if (typeof token !== 'string') { dbg('no_token'); return null; }
   const parts = token.split('.');
-  if (parts.length !== 3) return null;
+  if (parts.length !== 3) { dbg('malformed_token', { segments: parts.length }); return null; }
   const header = parseB64urlJSON(parts[0]);
   const claims = parseB64urlJSON(parts[1]);
-  if (!header || !claims || header.alg !== 'RS256') return null;
-  if (claims.exp && now / 1000 > claims.exp) return null;
+  if (!header || !claims) { dbg('unparseable_token'); return null; }
+  if (header.alg !== 'RS256') { dbg('bad_alg', { alg: header.alg }); return null; }
+  if (claims.exp && now / 1000 > claims.exp) { dbg('expired', { exp: claims.exp, now: Math.floor(now / 1000) }); return null; }
   if (aud) {
     const auds = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-    if (!auds.includes(aud)) return null;
+    if (!auds.includes(aud)) { dbg('aud_mismatch', { expected_aud: aud, token_aud: auds }); return null; }
   }
-  const jwks = keyFetcher ? await keyFetcher() : await fetchCerts(teamDomain);
+  const host = normalizeAccessDomain(teamDomain);
+  let jwks;
+  try { jwks = keyFetcher ? await keyFetcher() : await fetchCerts(host); }
+  catch (e) { dbg('jwks_fetch_error', { host, error: String((e && e.message) || e) }); return null; }
   const jwk = (jwks.keys || []).find((k) => k.kid === header.kid) || (jwks.keys || [])[0];
-  if (!jwk) return null;
-  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
-  const data = enc.encode(parts[0] + '.' + parts[1]);
-  const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64urlDecode(parts[2]), data);
-  return ok ? claims : null;
+  if (!jwk) { dbg('no_matching_jwk', { kid: header.kid, keys: (jwks.keys || []).length }); return null; }
+  try {
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+    const data = enc.encode(parts[0] + '.' + parts[1]);
+    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64urlDecode(parts[2]), data);
+    if (!ok) { dbg('bad_signature', { kid: header.kid }); return null; }
+    if (claims.iss && host && !String(claims.iss).includes(host)) dbg('issuer_note', { iss: claims.iss, host });
+    return claims;
+  } catch (e) { dbg('verify_error', { error: String((e && e.message) || e) }); return null; }
 }
 
-async function fetchCerts(teamDomain) {
-  const r = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`, { cf: { cacheTtl: 3600 } });
-  if (!r.ok) throw new Error('jwks_fetch_failed');
+// Accept a team domain with or without a scheme / trailing slash — this is the bug behind a
+// `https://`-prefixed CF_ACCESS_TEAM_DOMAIN producing a `https://https://…` JWKS URL.
+export function normalizeAccessDomain(d) { return String(d || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, ''); }
+
+async function fetchCerts(host) {
+  const r = await fetch(`https://${host}/cdn-cgi/access/certs`, { cf: { cacheTtl: 3600 } });
+  if (!r.ok) throw new Error('jwks_http_' + r.status);
   return r.json();
 }
 

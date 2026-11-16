@@ -95,6 +95,24 @@ On the preview: load `/` (homepage), the beta download box, `/waitlist` POST, `/
 as today. The tournament system changed **no existing files** (verify: `git diff --name-status main`
 shows only `A` additions), so existing R2/env bindings and functions are untouched.
 
+## 6b. Troubleshooting an Access 403 ("Forbidden — requires admin access")
+The admin function verifies the Access JWT itself, so a 403 means that verification failed. To see
+**exactly why** without exposing any token:
+1. Set Preview var `TOURNEY_AUTH_DEBUG = 1` (Pages → Variables → Preview) and redeploy.
+2. Reload `/tournaments/admin`. The 403 page now appends `[auth-debug] <reason>` (and an
+   `x-access-debug` header); `/api/admin/*` returns `{ "reason": ... }`. You can also run
+   `npx wrangler pages deployment tail` and look for `[access] <stage>` lines.
+3. Common reasons and fixes:
+   - `aud_mismatch {expected_aud, token_aud}` → `CF_ACCESS_AUD` must equal the Access app's
+     **Application Audience (AUD) Tag** (Zero Trust → Access → your app → Overview), not the Client ID.
+   - `no_access_token {header:false,cookie:false}` → the Access app isn't actually in front of this
+     path; ensure it covers both `…/tournaments/admin` and `…/api/admin` on the preview domain.
+   - `jwks_fetch_error {host}` → `CF_ACCESS_TEAM_DOMAIN` must be the bare host
+     `yourteam.cloudflareaccess.com` (a scheme/trailing slash is now tolerated, but use the bare host).
+   - `expired` → re-login; `bad_signature` / `no_matching_jwk` → team domain points at the wrong team.
+4. **Turn `TOURNEY_AUTH_DEBUG` back off (unset or `0`) before production.** The reason strings contain
+   no secrets (stage names, AUD tags, kid), but keep them off in prod.
+
 ## 6. Promote to production (after your approval)
 Set the same bindings/secrets on the **Production** environment (prod `ih_tournaments` D1, prod Access
 app over `ingenioushunter.gg/tournaments/admin*` + `/api/admin*`, prod secrets + Discord), apply
