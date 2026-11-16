@@ -1,21 +1,32 @@
-# wrangler.toml — used ONLY for D1 migrations + local integration testing.
+# wrangler.toml — for the D1 CLI (migrations) and local dev ONLY. It is intentionally NOT a Pages
+# config: it has NO `pages_build_output_dir`, so Cloudflare Pages does NOT read it and your existing
+# DASHBOARD-managed bindings/secrets remain authoritative and UNCHANGED (R2 BETA_BUCKET, BETA_PASSWORD,
+# etc.). This avoids the failure mode where a repo config silently overrides dashboard bindings.
 #
-# IMPORTANT: production bindings (R2 BETA_BUCKET, env vars, and the D1 binding below)
-# are configured in the Cloudflare Pages DASHBOARD, not from this file — the Pages build
-# command stays EMPTY and nothing here changes how the site deploys. This file lets you run
-#   wrangler d1 migrations apply ih_tournaments            (remote)
-#   wrangler d1 migrations apply ih_tournaments --local    (local test db)
-# and bind D1 for `wrangler pages dev`. See TOURNAMENTS.md.
+# Production vs. Preview ISOLATION is configured in the Pages dashboard (each binding/secret has a
+# separate Production and Preview value): bind DB -> prod D1 for production and DB -> a SEPARATE
+# staging D1 for preview, and give preview its own secrets + Discord webhook. See STAGING.md.
 #
-# After `wrangler d1 create ih_tournaments`, paste the returned database_id below AND add the
-# same binding (name = DB) in the Pages project → Settings → Functions → D1 bindings.
+# Use this file for:
+#   wrangler d1 migrations apply ih_tournaments            # prod D1
+#   wrangler d1 migrations apply ih_tournaments_staging     # staging D1
+#   wrangler pages dev . --d1 DB=ih_tournaments_staging --compatibility-date=2024-11-01   # local
 
 name = "ingenioushunter-site"
-pages_build_output_dir = "."
 compatibility_date = "2024-11-01"
 
+# Production tournament database. Paste the id from `wrangler d1 create ih_tournaments`.
 [[d1_databases]]
 binding = "DB"
 database_name = "ih_tournaments"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "REPLACE_WITH_PROD_D1_ID"
+migrations_dir = "migrations"
+
+# Isolated STAGING database — used only by `--env staging` CLI commands and preview deployments
+# (which bind DB to this db via the dashboard Preview binding). Never shares prod data.
+[env.staging]
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "ih_tournaments_staging"
+database_id = "REPLACE_WITH_STAGING_D1_ID"
 migrations_dir = "migrations"

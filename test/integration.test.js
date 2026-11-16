@@ -1,8 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { makeEnv } from './helpers/d1.js';
 import * as svc from '../functions/tournaments/_lib/service.js';
 import { parseRank } from '../functions/tournaments/_lib/rank.js';
+
+const fixture = (n) => readFileSync(fileURLToPath(new URL('./fixtures/' + n, import.meta.url)), 'utf8');
 
 const HEADER = 'Timestamp,Email Address,Summoner Name,Discord,Current Rank,Preferred Role,Solo or Team,Team Name';
 function csv(rows) { return [HEADER, ...rows].join('\n'); }
@@ -32,6 +36,25 @@ test('idempotent import against real D1: re-import does not duplicate', async ()
   ]));
   assert.deepEqual([r3.inserted, r3.updated, r3.skipped], [0, 1, 1]);
   const alice = await env.DB.prepare("SELECT * FROM participants WHERE riot_id_norm='alice'").bind().first();
+  assert.equal(alice.rank_tier, 'DIAMOND');
+});
+
+test('sample Google Forms fixtures: import is idempotent across repeated + modified exports', async () => {
+  const env = makeEnv();
+  const t = await newTournament(env);
+  const first = await svc.importParticipants(env, t.id, fixture('sample_registrations.csv'));
+  assert.equal(first.inserted, 20);
+  // re-import the identical export -> nothing changes
+  const again = await svc.importParticipants(env, t.id, fixture('sample_registrations.csv'));
+  assert.deepEqual([again.inserted, again.updated], [0, 0]);
+  assert.equal(again.skipped, 20);
+  // modified export: 2 rank changes (alice, dave), 1 new (uma), rest unchanged; originals not in it stay
+  const mod = await svc.importParticipants(env, t.id, fixture('sample_registrations_modified.csv'));
+  assert.equal(mod.inserted, 1);
+  assert.equal(mod.updated, 2);
+  const total = await env.DB.prepare('SELECT COUNT(*) c FROM participants WHERE tournament_id=?').bind(t.id).first();
+  assert.equal(total.c, 21); // 20 original + 1 new, no duplicates
+  const alice = await env.DB.prepare("SELECT rank_tier,rank_ordinal FROM participants WHERE riot_id_norm='ashe arrow#na1'").bind().first();
   assert.equal(alice.rank_tier, 'DIAMOND');
 });
 

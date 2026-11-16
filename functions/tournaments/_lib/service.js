@@ -184,9 +184,11 @@ export async function bracketView(env, divisionId) {
 export async function issueCaptainToken(env, teamId) {
   const team = await first(env, `SELECT * FROM teams WHERE id=?`, teamId);
   if (!team) throw new ServiceError('no_team');
-  const token = await signToken(env.TOURNEY_TOKEN_SECRET, { t: teamId, e: team.tournament_id, k: 'captain' });
+  const ttlDays = Number(env.TOURNEY_TOKEN_TTL_DAYS) || 45; // lasts through the event, then expires
+  // nonce makes every issuance unique so rotating a team's link truly revokes the previous one.
+  const token = await signToken(env.TOURNEY_TOKEN_SECRET, { t: teamId, e: team.tournament_id, k: 'captain', n: genId() }, { ttlMs: ttlDays * 86400000 });
   await run(env, `UPDATE teams SET captain_token_hash=?, updated_at=? WHERE id=?`, await sha256hex(token), now(), teamId);
-  return token; // deliver via admin UI (copy magic link); never logged
+  return token; // scoped (team+tournament), expiring (exp), revocable (rotating replaces the stored hash)
 }
 
 export async function resolveCaptain(env, token) {

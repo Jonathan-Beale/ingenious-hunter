@@ -27,6 +27,15 @@ test('token hash is stable (for storage/revocation)', async () => {
   assert.equal(await sha256hex(tok), await sha256hex(tok));
 });
 
+test('captain token expires', async () => {
+  const tok = await signToken(SECRET, { t: 'team_1', k: 'captain' }, { ttlMs: 1000 });
+  const p = await verifyToken(SECRET, tok);
+  assert.ok(p && p.exp, 'exp claim is set');
+  // valid now, invalid after exp
+  assert.ok(await verifyToken(SECRET, tok, { now: p.iat + 500 }));
+  assert.equal(await verifyToken(SECRET, tok, { now: p.exp + 1 }), null);
+});
+
 // ---- Cloudflare Access JWT ----
 async function makeAccessJwt({ aud, exp, email, kid = 'k1' }) {
   const { publicKey, privateKey } = await crypto.subtle.generateKey(

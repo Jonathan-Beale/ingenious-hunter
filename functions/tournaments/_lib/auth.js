@@ -34,22 +34,33 @@ function timingSafeEqual(a, b) {
   return diff === 0;
 }
 
-export async function signToken(secret, payload) {
-  const body = { ...payload, iat: payload.iat || Date.now() };
+// Sign a token. `opts.ttlMs` sets an expiry (exp); captain links are scoped (team+tournament),
+// expiring (exp), and revocable (the team stores sha256(token); rotating invalidates the old one).
+export async function signToken(secret, payload, opts = {}) {
+  const iat = payload.iat || Date.now();
+  const body = { ...payload, iat };
+  if (opts.ttlMs) body.exp = iat + opts.ttlMs;
+  else if (payload.exp) body.exp = payload.exp;
   const head = b64urlJSON(body);
   const key = await hmacKey(secret);
   const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(head)));
   return `${head}.${b64urlEncode(sig)}`;
 }
 
-export async function verifyToken(secret, token) {
+// Verify HMAC integrity AND expiry. Returns the payload or null. `opts.now` injectable for tests.
+export async function verifyToken(secret, token, opts = {}) {
   if (typeof token !== 'string' || token.indexOf('.') < 0) return null;
   const [head, sig] = token.split('.');
   if (!head || !sig) return null;
-  const key = await hmacKey(secret);
-  const expected = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(head)));
-  if (!timingSafeEqual(expected, b64urlDecode(sig))) return null;
-  return parseB64urlJSON(head);
+  try {
+    const key = await hmacKey(secret);
+    const expected = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(head)));
+    if (!timingSafeEqual(expected, b64urlDecode(sig))) return null;
+  } catch { return null; } // malformed base64 / signature -> treat as invalid, never throw
+  const payload = parseB64urlJSON(head);
+  if (!payload) return null;
+  if (payload.exp && (opts.now || Date.now()) > payload.exp) return null; // expired
+  return payload;
 }
 
 export async function sha256hex(s) {
