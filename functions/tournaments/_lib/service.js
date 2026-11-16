@@ -39,6 +39,16 @@ export async function createTournament(env, t) {
   await audit(env, { tournamentId: id, actorType: 'admin', actorId: t.actorId, action: 'create_tournament', entity: 'tournaments', entityId: id });
   return getTournament(env, id);
 }
+const TOURNAMENT_EDITABLE = ['name', 'status', 'visibility', 'starts_at', 'checkin_opens_at', 'checkin_closes_at', 'capacity', 'team_size', 'registration_url', 'discord_invite'];
+export async function updateTournament(env, id, fields, actor = {}) {
+  const sets = [], vals = [];
+  for (const k of TOURNAMENT_EDITABLE) if (k in fields) { sets.push(`${k}=?`); vals.push(fields[k]); }
+  if (!sets.length) return getTournament(env, id);
+  sets.push('updated_at=?'); vals.push(now());
+  await run(env, `UPDATE tournaments SET ${sets.join(',')} WHERE id=?`, ...vals, id);
+  await audit(env, { tournamentId: id, actorType: 'admin', actorId: actor.id, action: 'update_tournament', entity: 'tournaments', entityId: id, after: fields });
+  return getTournament(env, id);
+}
 export const getTournament = (env, id) => first(env, `SELECT * FROM tournaments WHERE id=?`, id);
 export const getTournamentBySlug = (env, slug) => first(env, `SELECT * FROM tournaments WHERE slug=?`, slug);
 export const listTournaments = (env, visibility = 'public') =>
