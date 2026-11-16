@@ -1,0 +1,21 @@
+# wrangler.toml — used ONLY for D1 migrations + local integration testing.
+#
+# IMPORTANT: production bindings (R2 BETA_BUCKET, env vars, and the D1 binding below)
+# are configured in the Cloudflare Pages DASHBOARD, not from this file — the Pages build
+# command stays EMPTY and nothing here changes how the site deploys. This file lets you run
+#   wrangler d1 migrations apply ih_tournaments            (remote)
+#   wrangler d1 migrations apply ih_tournaments --local    (local test db)
+# and bind D1 for `wrangler pages dev`. See TOURNAMENTS.md.
+#
+# After `wrangler d1 create ih_tournaments`, paste the returned database_id below AND add the
+# same binding (name = DB) in the Pages project → Settings → Functions → D1 bindings.
+
+name = "ingenioushunter-site"
+pages_build_output_dir = "."
+compatibility_date = "2024-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ih_tournaments"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"

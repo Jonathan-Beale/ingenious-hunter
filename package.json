@@ -1,0 +1,10 @@
+{
+  "name": "ingenioushunter-site",
+  "private": true,
+  "type": "module",
+  "description": "ingenioushunter.gg — static site + Cloudflare Pages Functions (builds, tournaments).",
+  "scripts": {
+    "test": "node --test test/",
+    "simulate": "node test/simulate.js"
+  }
+}
