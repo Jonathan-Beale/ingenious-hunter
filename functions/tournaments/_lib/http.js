@@ -44,6 +44,27 @@ export async function requireAccess(context) {
 
 function safeJson(o) { try { return JSON.stringify(o); } catch { return '{}'; } }
 
+// Build marker — bumped each deploy so a live request can confirm WHICH code is running. The admin
+// 403 always echoes it (+ whether the function actually read TOURNEY_AUTH_DEBUG), so a stale preview
+// or an unapplied env var is distinguishable from a genuine auth failure. No secrets here.
+export const BUILD = 'authdiag-r2';
+
+// Shared 403 for the admin middlewares. Always includes the build marker + debug state; includes the
+// specific failure reason only when TOURNEY_AUTH_DEBUG=1. Never bypasses auth.
+export function accessForbidden(context, asJson = false) {
+  const data = context.data || {};
+  const debug = !!data.accessDebug;
+  const reason = data.accessReason || 'verify_failed';
+  const headers = { 'cache-control': 'no-store', 'x-ih-build': BUILD, 'x-ih-auth-debug': debug ? 'on' : 'off' };
+  if (asJson) {
+    return json({ error: 'forbidden', detail: 'admin access required', build: BUILD, debug, ...(debug ? { reason } : {}) }, 403, headers);
+  }
+  const body = 'Forbidden — this page requires Ingenious Hunter admin access (Cloudflare Access).'
+    + `\n\n[build ${BUILD} · debug ${debug ? 'on' : 'off'}]`
+    + (debug ? `\n[auth-debug] ${reason}` : '');
+  return new Response(body, { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8', ...headers } });
+}
+
 const HEAD_CSS = `:root{--bg:#0a0a0a;--bg-2:#101010;--panel:#141414;--panel-2:#1b1b1b;--line:#242424;--line-red:#7a0909;--text:#fff;--muted:#9aa0a6;--red:#ff1e1e;--red-deep:#7a0909;--green:#32ff5e;--amber:#ffb000;--radius:14px;--maxw:1120px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
