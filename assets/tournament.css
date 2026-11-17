@@ -46,11 +46,11 @@
 .bround-h { position: absolute; top: 2px; text-align: center; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
 .bwires { position: absolute; left: 0; top: 0; pointer-events: none; }
 .bwire { fill: none; stroke: var(--line); stroke-width: 1.5; }
-.bwire.adv { stroke: rgba(255,30,30,.5); }
+.bwire.adv { stroke: rgba(50,255,94,.45); }  /* confirmed winner's path (green = decided, not an error) */
 .bmatch { position: absolute; box-sizing: border-box; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-left-width: 3px; border-radius: 9px; overflow: hidden; }
 .bmatch.s-confirmed { border-left-color: var(--green); }
 .bmatch.s-disputed  { border-left-color: var(--red); box-shadow: 0 0 0 1px rgba(255,30,30,.25); }
-.bmatch.s-ready     { border-left-color: #ff6a6a; }
+.bmatch.s-ready     { border-left-color: #4aa3ff; }  /* active/playable → blue; red is reserved for disputes/errors */
 .bmatch.s-reported  { border-left-color: var(--amber); }
 .bmatch.s-pending   { border-left-color: var(--line); }
 .bmatch.bye { opacity: .62; }
@@ -63,7 +63,7 @@
 .bmfoot { height: 16px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; background: rgba(255,255,255,.015); }
 .mfs { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 700; font-size: 11px; }
 .mstatus { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
-.mstatus.confirmed { color: var(--green); } .mstatus.disputed { color: var(--red); } .mstatus.ready { color: #ff6a6a; }
+.mstatus.confirmed { color: var(--green); } .mstatus.disputed { color: var(--red); } .mstatus.ready { color: #4aa3ff; }
 .mstatus.reported { color: var(--amber); } .mstatus.pending { color: var(--muted); } .mstatus.bye { color: var(--muted); }
 
 /* captain */

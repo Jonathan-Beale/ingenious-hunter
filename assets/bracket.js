@@ -72,6 +72,7 @@ import { computeLayout, roundName } from './bracket_layout.js';
     L.cards.forEach(function (card) {
       var m = byId[card.id];
       var root = el('div', 'bmatch');
+      root.setAttribute('data-mid', card.id);
       root.style.left = card.x + 'px'; root.style.top = card.y + 'px';
       root.style.width = card.w + 'px'; root.style.height = card.h + 'px';
       var ra = teamRowNode(), rb = teamRowNode(), foot = el('div', 'bmfoot');
