@@ -61,8 +61,13 @@
       tile(m.completedDivs + '<span class="muted" style="font-size:14px">/' + m.divs + '</span>', 'Divisions complete', m.completedDivs && m.completedDivs === m.divs ? 'good' : ''),
     ].join('');
     $('pane-overview').innerHTML = '<div class="acard"><h3>' + esc(t.name) + ' ' + statusChip(t.status) + '</h3>' +
-      '<p class="muted small">Registration form: ' + (t.registration_url ? '<a class="red" href="' + esc(t.registration_url) + '" target="_blank" rel="noopener">link</a>' : '—') + '</p>' +
       '<div class="asub">Operational overview</div><div class="ostats">' + tiles + '</div>' +
+      '<div class="asub">Event links</div><div class="aform">' +
+        '<input class="ainput" id="o-reg" placeholder="Registration URL (Google Form)" value="' + esc(t.registration_url || '') + '" style="min-width:300px">' +
+        '<input class="ainput" id="o-discord" placeholder="Discord invite (this event)" value="' + esc(t.discord_invite || '') + '" style="min-width:260px">' +
+        '<button class="btn primary sm" data-act="savelinks">Save links</button>' +
+      '</div>' +
+      '<p class="muted small">Shown on the public event page, and configurable per event. The IH Discord announcement webhook is separate (Announcements, below) and stays available for every event.</p>' +
       '<div class="asub">Lifecycle status</div><div class="ablock">' + statusButtons(t) + '</div>' +
       '<div class="asub">Announcements</div><div class="ablock">' +
         '<button class="btn ghost sm" data-act="announce" data-kind="published">Announce: registration</button>' +
@@ -190,6 +195,11 @@
     }
     try {
       if (act === 'status') { await api('tournaments/' + S.current + '/update', 'POST', { status: el.getAttribute('data-status') }); toast('Status → ' + el.getAttribute('data-status')); await loadDetail(); }
+      else if (act === 'savelinks') {
+        var reg = $('o-reg').value.trim(), disc = $('o-discord').value.trim();
+        await api('tournaments/' + S.current + '/update', 'POST', { registration_url: reg || null, discord_invite: disc || null });
+        toast('Event links saved'); await loadDetail();
+      }
       else if (act === 'seed') { var r = await api('divisions/' + el.getAttribute('data-div') + '/seed', 'POST', {}); toast('Seeded: ' + r.teams + ' teams, ' + r.byes + ' byes'); await loadDetail(); }
       else if (act === 'token') {
         var tk = await api('teams/' + el.getAttribute('data-team') + '/token', 'POST', {});
