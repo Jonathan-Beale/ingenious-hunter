@@ -57,6 +57,20 @@ test('discord_invite + registration_url are configurable PER EVENT (isolated bet
   assert.equal((await svc.getTournament(env, b.id)).discord_invite, 'https://discord.gg/BBB');
 });
 
+test('raising capacity is non-destructive — existing registrations and teams are preserved', async () => {
+  const env = makeEnv();
+  const t = await svc.createTournament(env, { slug: 'cap', name: 'Cap Cup', status: 'registration', capacity: 32 });
+  await svc.importParticipants(env, t.id, 'Response ID,Display Name,Rank,Entry Type\nR1,Alpha,Diamond 1,Team\nR2,Beta,Gold 2,Team', null, {});
+  await svc.createTeam(env, t.id, { name: 'Alpha Squad' });
+  const count = async (tbl) => (await env.DB.prepare('SELECT count(*) n FROM ' + tbl + ' WHERE tournament_id=?').bind(t.id).first()).n;
+  const pBefore = await count('participants'), teamBefore = await count('teams');
+  assert.ok(pBefore >= 2 && teamBefore >= 1, 'has registrations + a team to preserve');
+  const up = await svc.updateTournament(env, t.id, { capacity: 128 }, { id: 'admin' });
+  assert.equal(up.capacity, 128, 'capacity raised');
+  assert.equal(await count('participants'), pBefore, 'registrations preserved');
+  assert.equal(await count('teams'), teamBefore, 'teams preserved');
+});
+
 test('announcing does NOT change tournament status (lifecycle stays a separate operation)', async () => {
   const env = makeEnv(); // no DISCORD_WEBHOOK_URL configured
   const t = await svc.createTournament(env, { slug: 'a', name: 'A', status: 'registration' });
