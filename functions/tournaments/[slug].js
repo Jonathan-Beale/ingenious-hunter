@@ -43,7 +43,7 @@ export async function onRequestGet({ env, params, request }) {
     <div class="muted" id="bracket-loading">Loading bracket…</div>
   </section>`;
 
-  const boot = `<script>window.__IH_BRACKETS__=${JSON.stringify(brackets).replace(/</g, '\\u003c')};</script><script src="/assets/bracket.js" defer></script>`;
+  const boot = `<script>window.__IH_BRACKETS__=${JSON.stringify(brackets).replace(/</g, '\\u003c')};</script><script type="module" src="/assets/bracket.js"></script>`;
   return page(`${t.name} · Ingenious Hunter`, body, { description: `${t.name} — ${t.game} tournament bracket, divisions and live results.`, head: boot });
 }
 

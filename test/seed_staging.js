@@ -11,7 +11,10 @@ import { genId, now } from '../functions/tournaments/_lib/ids.js';
 
 const OUT = process.argv[2];
 const APEX_MODE = process.argv[3] || 'complete'; // 'complete' (both finish) | 'partial' (Apex left mid-tournament)
-if (!OUT) { console.error('usage: node test/seed_staging.js <out.sql> [complete|partial]'); process.exit(2); }
+// This is a CLI seeding tool, not a unit test. `node --test` auto-runs every file under test/, so
+// with no output path it no-ops cleanly instead of failing the suite. Run it as:
+//   node test/seed_staging.js <out.sql> [complete|partial]
+if (!OUT) { console.log('seed_staging.js: pass an output .sql path to run (skipped under the test runner).'); process.exit(0); }
 
 const env = makeEnv();              // in-memory SQLite loaded with migrations/0001_init.sql
 const DB = env.DB;
@@ -339,6 +342,19 @@ for (const tbl of TABLES) {
 for (const [pid, tid] of deferred) lines.push(`UPDATE participants SET team_id=${lit(tid)} WHERE id=${lit(pid)};`);
 const { writeFileSync } = await import('node:fs');
 writeFileSync(OUT, lines.join('\n') + '\n', 'utf8');
+
+// Also dump the admin-dashboard payload (same shape /api/admin/tournaments/:id returns) so the
+// offline screenshot harness can render the real Overview + Matches dashboard with zero network.
+const q = (sql, ...a) => DB.prepare(sql).bind(...a).all().then((r) => r.results);
+const detail = {
+  tournament: await svc.getTournament(env, t.id),
+  divisions: await svc.listDivisions(env, t.id),
+  participants: await q('SELECT id,external_ref,kind,display_name,riot_id,discord,rank_tier,rank_ordinal,preferred_role,proposed_team_name,team_id,division_id,status FROM participants WHERE tournament_id=? ORDER BY rank_ordinal DESC', t.id),
+  teams: await q('SELECT * FROM teams WHERE tournament_id=? ORDER BY division_id, seed', t.id),
+  matches: await q('SELECT id,division_id,round,slot,best_of,team_a_id,team_b_id,winner_team_id,score_a,score_b,status,is_bye,next_match_id FROM matches WHERE tournament_id=? ORDER BY division_id, round, slot', t.id),
+  audit: await q('SELECT actor_type,actor_id,action,entity,entity_id,note,created_at FROM audit_log WHERE tournament_id=? ORDER BY created_at DESC LIMIT 100', t.id),
+};
+writeFileSync(OUT.replace(/\.sql$/, '') + '.detail.json', JSON.stringify({ tournaments: [{ id: t.id, name: detail.tournament.name, status: detail.tournament.status }], detail }), 'utf8');
 
 const rowCounts = {};
 for (const tbl of TABLES) rowCounts[tbl] = (await DB.prepare(`SELECT count(*) n FROM ${tbl}`).first()).n;
