@@ -62,12 +62,15 @@
     ].join('');
     $('pane-overview').innerHTML = '<div class="acard"><h3>' + esc(t.name) + ' ' + statusChip(t.status) + '</h3>' +
       '<div class="asub">Operational overview</div><div class="ostats">' + tiles + '</div>' +
-      '<div class="asub">Event links</div><div class="aform">' +
+      '<div class="asub">Event settings</div><div class="aform">' +
         '<input class="ainput" id="o-reg" placeholder="Registration URL (Google Form)" value="' + esc(t.registration_url || '') + '" style="min-width:300px">' +
-        '<input class="ainput" id="o-discord" placeholder="Discord invite (this event)" value="' + esc(t.discord_invite || '') + '" style="min-width:260px">' +
-        '<button class="btn primary sm" data-act="savelinks">Save links</button>' +
+        '<input class="ainput" id="o-discord" placeholder="Discord invite (this event)" value="' + esc(t.discord_invite || '') + '" style="min-width:240px">' +
+        '<label class="muted small" style="display:flex;flex-direction:column;gap:3px">Team capacity' +
+          '<input class="ainput" id="o-cap" type="number" min="2" value="' + (t.capacity || 32) + '" style="width:110px" title="Display cap — increasing it never affects existing registrations">' +
+        '</label>' +
+        '<button class="btn primary sm" data-act="savesettings">Save</button>' +
       '</div>' +
-      '<p class="muted small">Shown on the public event page, and configurable per event. The IH Discord announcement webhook is separate (Announcements, below) and stays available for every event.</p>' +
+      '<p class="muted small">Shown on the public event page, configurable per event. Raising capacity is safe — it never affects existing registrations. The IH Discord announcement webhook is separate (Announcements, below) and stays available for every event.</p>' +
       '<div class="asub">Lifecycle status</div><div class="ablock">' + statusButtons(t) + '</div>' +
       '<div class="asub">Announcements</div><div class="ablock">' +
         '<button class="btn ghost sm" data-act="announce" data-kind="published">Announce: registration</button>' +
@@ -195,10 +198,12 @@
     }
     try {
       if (act === 'status') { await api('tournaments/' + S.current + '/update', 'POST', { status: el.getAttribute('data-status') }); toast('Status → ' + el.getAttribute('data-status')); await loadDetail(); }
-      else if (act === 'savelinks') {
-        var reg = $('o-reg').value.trim(), disc = $('o-discord').value.trim();
-        await api('tournaments/' + S.current + '/update', 'POST', { registration_url: reg || null, discord_invite: disc || null });
-        toast('Event links saved'); await loadDetail();
+      else if (act === 'savesettings') {
+        var reg = $('o-reg').value.trim(), disc = $('o-discord').value.trim(), cap = parseInt($('o-cap').value, 10);
+        var payload = { registration_url: reg || null, discord_invite: disc || null };
+        if (cap > 0) payload.capacity = cap; // raising the cap is non-destructive; never touches registrations
+        await api('tournaments/' + S.current + '/update', 'POST', payload);
+        toast('Event settings saved'); await loadDetail();
       }
       else if (act === 'seed') { var r = await api('divisions/' + el.getAttribute('data-div') + '/seed', 'POST', {}); toast('Seeded: ' + r.teams + ' teams, ' + r.byes + ' byes'); await loadDetail(); }
       else if (act === 'token') {
