@@ -1,0 +1,33 @@
+# wrangler.toml — for the D1 CLI (migrations) and local dev ONLY. It is intentionally NOT a Pages
+# config: it has NO `pages_build_output_dir`, so Cloudflare Pages does NOT read it and your existing
+# DASHBOARD-managed bindings/secrets remain authoritative and UNCHANGED (R2 BETA_BUCKET, BETA_PASSWORD,
+# etc.). This avoids the failure mode where a repo config silently overrides dashboard bindings.
+#
+# Production vs. Preview ISOLATION is configured in the Pages dashboard (each binding/secret has a
+# separate Production and Preview value): bind DB -> prod D1 for production and DB -> a SEPARATE
+# staging D1 for preview, and give preview its own secrets + Discord webhook. See STAGING.md.
+#
+# Use this file for:
+#   wrangler d1 migrations apply ih_tournaments            # prod D1
+#   wrangler d1 migrations apply ih_tournaments_staging     # staging D1
+#   wrangler pages dev . --d1 DB=ih_tournaments_staging --compatibility-date=2024-11-01   # local
+
+name = "ingenioushunter-site"
+compatibility_date = "2024-11-01"
+
+# Production tournament database (created 2026-11-17). CLI-only: Pages ignores this file, so the
+# effective Production `DB` binding is set in the dashboard (Settings -> Functions -> D1 -> Production).
+[[d1_databases]]
+binding = "DB"
+database_name = "ih_tournaments"
+database_id = "94dfe178-67cf-4f85-9eaf-19049c2c96e4"
+migrations_dir = "migrations"
+
+# Isolated STAGING database — used only by `--env staging` CLI commands and preview deployments
+# (which bind DB to this db via the dashboard Preview binding). Never shares prod data.
+[env.staging]
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "ih_tournaments_staging"
+database_id = "79d43c30-ecac-4bad-a82d-5fee97538f0f"
+migrations_dir = "migrations"
