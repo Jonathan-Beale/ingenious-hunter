@@ -15,11 +15,12 @@
 name = "ingenioushunter-site"
 compatibility_date = "2024-11-01"
 
-# Production tournament database. Paste the id from `wrangler d1 create ih_tournaments`.
+# Production tournament database (created 2026-11-17). CLI-only: Pages ignores this file, so the
+# effective Production `DB` binding is set in the dashboard (Settings -> Functions -> D1 -> Production).
 [[d1_databases]]
 binding = "DB"
 database_name = "ih_tournaments"
-database_id = "REPLACE_WITH_PROD_D1_ID"
+database_id = "94dfe178-67cf-4f85-9eaf-19049c2c96e4"
 migrations_dir = "migrations"
 
 # Isolated STAGING database — used only by `--env staging` CLI commands and preview deployments
@@ -28,5 +29,5 @@ migrations_dir = "migrations"
 [[env.staging.d1_databases]]
 binding = "DB"
 database_name = "ih_tournaments_staging"
-database_id = "REPLACE_WITH_STAGING_D1_ID"
+database_id = "79d43c30-ecac-4bad-a82d-5fee97538f0f"
 migrations_dir = "migrations"
