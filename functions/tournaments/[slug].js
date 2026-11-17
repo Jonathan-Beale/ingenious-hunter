@@ -18,7 +18,7 @@ export async function onRequestGet({ env, params, request }) {
     return json({ tournament: t, brackets });
   }
 
-  const when = t.starts_at ? new Date(t.starts_at).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' }) : 'To be announced';
+  const when = formatEventTime(t.starts_at);
   const canRegister = t.status === 'registration' && t.registration_url;
   const ctas = [
     canRegister ? `<a class="btn primary" href="${esc(t.registration_url)}" target="_blank" rel="noopener">Register</a>` : '',
@@ -48,6 +48,16 @@ export async function onRequestGet({ env, params, request }) {
 
   const boot = `<script>window.__IH_BRACKETS__=${JSON.stringify(brackets).replace(/</g, '\\u003c')};</script><script type="module" src="/assets/bracket.js"></script>`;
   return page(`${t.name} · Ingenious Hunter`, body, { description: `${t.name} — ${t.game} tournament bracket, divisions and live results.`, head: boot });
+}
+
+// Format an event time in US Eastern with the correct EST/EDT abbreviation for the date (DST-aware).
+// The stored starts_at stays a UTC epoch; only the display is localized.
+export function formatEventTime(ts) {
+  if (!ts) return 'To be announced';
+  const d = new Date(ts);
+  const when = d.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short', timeZone: 'America/New_York' });
+  const abbr = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }).split(' ').pop();
+  return `${when} ${abbr}`;
 }
 
 const statusLabel = (s) => ({ draft: 'Upcoming', registration: 'Registration open', checkin: 'Check-in open', live: 'Live now', complete: 'Completed' }[s] || s);
