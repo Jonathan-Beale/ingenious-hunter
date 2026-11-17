@@ -45,6 +45,18 @@ test('reopen is blocked when the downstream match is already decided (no orphane
   await assert.rejects(() => svc.reopenMatch(env, m0.id, { actorId: 'admin' }), (e) => e.code === 'downstream_locked');
 });
 
+test('discord_invite + registration_url are configurable PER EVENT (isolated between tournaments)', async () => {
+  const env = makeEnv();
+  const a = await svc.createTournament(env, { slug: 'ev-a', name: 'Event A', status: 'registration', discord_invite: 'https://discord.gg/AAA' });
+  const b = await svc.createTournament(env, { slug: 'ev-b', name: 'Event B', status: 'registration', discord_invite: 'https://discord.gg/BBB' });
+  // edit only Event A's links
+  const up = await svc.updateTournament(env, a.id, { registration_url: 'https://forms.example/a', discord_invite: 'https://discord.gg/NEWA' }, { id: 'admin' });
+  assert.equal(up.registration_url, 'https://forms.example/a');
+  assert.equal(up.discord_invite, 'https://discord.gg/NEWA');
+  // Event B is untouched — per-event, not global
+  assert.equal((await svc.getTournament(env, b.id)).discord_invite, 'https://discord.gg/BBB');
+});
+
 test('announcing does NOT change tournament status (lifecycle stays a separate operation)', async () => {
   const env = makeEnv(); // no DISCORD_WEBHOOK_URL configured
   const t = await svc.createTournament(env, { slug: 'a', name: 'A', status: 'registration' });
