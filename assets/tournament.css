@@ -12,6 +12,7 @@
 .thero { padding: 24px 0 26px; } .thero.compact { padding: 14px 0 20px; }
 .thero h1 { font-size: clamp(28px, 5vw, 46px); margin: 16px 0 0; letter-spacing: -.02em; }
 .thero .lede { max-width: 640px; margin: 12px 0 0; font-size: 17px; }
+.tbrand { margin: 10px 0 0; font-size: 14px; font-weight: 700; letter-spacing: .01em; color: #cdd0d5; }
 .btns { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
 .tfacts { display: flex; gap: 26px; margin: 22px 0 0; flex-wrap: wrap; }
 .tfact .n { font-size: 24px; font-weight: 800; color: var(--red); font-variant-numeric: tabular-nums; }

@@ -6,6 +6,8 @@ export async function onRequestGet({ env, params, request }) {
   if (!env.DB) return notFound();
   const t = await getTournamentBySlug(env, params.slug);
   if (!t || t.visibility === 'private') return notFound();
+  let cfg = {}; try { cfg = JSON.parse(t.config || '{}'); } catch { cfg = {}; }
+  const tagline = cfg.tagline || ''; // per-event branding line (e.g. "Presented by X, powered by Y")
 
   const divisions = await listDivisions(env, t.id);
   const brackets = [];
@@ -30,6 +32,7 @@ export async function onRequestGet({ env, params, request }) {
   <section class="thero compact">
     <span class="eyebrow">${esc(statusLabel(t.status))}</span>
     <h1>${esc(t.name)}</h1>
+    ${tagline ? `<p class="tbrand">${esc(tagline)}</p>` : ''}
     <p class="lede muted">${esc(t.game)} · ${esc(t.region)} · ${when}</p>
     <div class="tfacts">
       <div class="tfact"><div class="n">${teamCount}/${t.capacity}</div><div class="l">teams</div></div>
