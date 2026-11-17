@@ -16,7 +16,7 @@ test('requireAccess records the reason + the debug flag it actually read from en
   assert.match(c2.data.accessReason, /no_access_token/);
 });
 
-test('accessForbidden echoes the build marker always; reason + debug only when enabled', async () => {
+test('accessForbidden surfaces diagnostics ONLY when debug on; clean 403 in production', async () => {
   const on = accessForbidden({ data: { accessDebug: true, accessReason: 'aud_mismatch {"expected_aud":"a"}' } }, false);
   const onText = await on.text();
   assert.equal(on.status, 403);
@@ -27,8 +27,9 @@ test('accessForbidden echoes the build marker always; reason + debug only when e
 
   const off = accessForbidden({ data: { accessDebug: false, accessReason: 'no_access_token' } }, false);
   const offText = await off.text();
-  assert.ok(offText.includes(`[build ${BUILD} · debug off]`), 'marker shows debug off');
+  assert.ok(!offText.includes('[build'), 'no build marker when debug off (clean production 403)');
   assert.ok(!offText.includes('[auth-debug]'), 'no reason leaked when debug off');
+  assert.equal(off.headers.get('x-ih-build'), null, 'no debug headers when debug off');
 
   const api = await accessForbidden({ data: { accessDebug: true, accessReason: 'aud_mismatch' } }, true).json();
   assert.equal(api.build, BUILD);

@@ -55,13 +55,14 @@ export function accessForbidden(context, asJson = false) {
   const data = context.data || {};
   const debug = !!data.accessDebug;
   const reason = data.accessReason || 'verify_failed';
-  const headers = { 'cache-control': 'no-store', 'x-ih-build': BUILD, 'x-ih-auth-debug': debug ? 'on' : 'off' };
+  // Diagnostics (build marker, failure reason, debug headers) appear ONLY when TOURNEY_AUTH_DEBUG=1.
+  // With the flag off (production), the 403 is clean — no build id, no reason, no debug headers leak.
+  const headers = { 'cache-control': 'no-store', ...(debug ? { 'x-ih-build': BUILD, 'x-ih-auth-debug': 'on' } : {}) };
   if (asJson) {
-    return json({ error: 'forbidden', detail: 'admin access required', build: BUILD, debug, ...(debug ? { reason } : {}) }, 403, headers);
+    return json({ error: 'forbidden', detail: 'admin access required', ...(debug ? { build: BUILD, debug: true, reason } : {}) }, 403, headers);
   }
   const body = 'Forbidden — this page requires Ingenious Hunter admin access (Cloudflare Access).'
-    + `\n\n[build ${BUILD} · debug ${debug ? 'on' : 'off'}]`
-    + (debug ? `\n[auth-debug] ${reason}` : '');
+    + (debug ? `\n\n[build ${BUILD} · debug on]\n[auth-debug] ${reason}` : '');
   return new Response(body, { status: 403, headers: { 'content-type': 'text/plain; charset=utf-8', ...headers } });
 }
 
