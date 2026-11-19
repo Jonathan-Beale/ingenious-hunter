@@ -35,6 +35,25 @@ test('role page uses that role’s entry', () => {
   assert.match(h, /51\.0% win rate/);          // mid Malignance item WR
 });
 
+test('a role with no data shows a transparent note, never another role’s numbers', () => {
+  // data has |all (50.6%) and |2/mid (51.2%) but NO support (|4) entry
+  const h = championContentBlock(data, '103', 'Ahri', 'ahri', 'support', meta);
+  assert.match(h, /still being collected/);
+  assert.doesNotMatch(h, /win rate:<\/strong>/); // no win-rate stat line rendered at all
+  assert.doesNotMatch(h, /50\.6%/);              // not the |all aggregate number
+  assert.doesNotMatch(h, /51\.2%/);              // not the mid number
+  assert.doesNotMatch(h, /Malignance/);          // not any item from another entry
+});
+
+test('aggregate page with no |all entry does not borrow a role entry', () => {
+  // only a mid (|2) entry exists, no |all — the aggregate page must not present it as the whole champ
+  const d = { '7|2': { cur: { g: 4000, wr: 0.57, items: [[3118, 60, 0.55, 2000, 'Malignance']] }, page: {} } };
+  const h = championContentBlock(d, '7', 'Solo', 'solo', null, meta);
+  assert.match(h, /still being collected/);
+  assert.doesNotMatch(h, /57\.0%/);              // never shows the mid entry as if it were aggregate
+  assert.doesNotMatch(h, /55\.0% win rate/);
+});
+
 test('missing data is stated transparently, never fabricated', () => {
   const h = championContentBlock({ '1|all': { cur: {}, page: {} } }, '1', 'Nodata', 'nodata', null, meta);
   assert.match(h, /still being collected/);
