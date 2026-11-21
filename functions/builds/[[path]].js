@@ -109,7 +109,10 @@ export function championContentBlock(data, numId, name, slug, role, meta) {
   // back to a different role (which would mislabel another role's numbers under this heading) or to an
   // arbitrary champion key — a missing entry is handled transparently below instead.
   const entry = role ? data[numId + '|' + ROLE_IDX[role]] : data[numId + '|all'];
-  const patch = (meta.curPatches && meta.curPatches[0]) || meta.patch || '';
+  // Prefer Riot's public patch label (26.xx) for user-facing copy; fall back to the internal
+  // id (16.xx) if an older meta lacks the public fields. Descriptive win-rate patch wins here.
+  const patch = (meta.curPatchesPublic && meta.curPatchesPublic[0]) || meta.wrLastPublic || meta.patchPublic
+    || (meta.curPatches && meta.curPatches[0]) || meta.patch || '';
   const tier = meta.tier || 'ranked';
   const nm = ESC(name) + (roleDisp ? ' ' + ESC(roleDisp) : '');
   let h = '<section class="champ-seo" aria-label="' + nm + ' build analytics">';
